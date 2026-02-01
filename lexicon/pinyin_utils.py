@@ -364,9 +364,10 @@ def expand_pinyin_wildcards(pinyin_pattern: str) -> List[str]:
     @ symbol acts as wildcard for finals (vowels):
     - t@cai -> t+any_final+cai -> tiancai, tencai, ticai, tucai, etc.
     - tianc@ -> tianc+any_final -> tiancai, tiancao, tiancang, etc.
+    - t@c@  -> t+any_final+c+any_final -> tiancai, tencao, etc. (multiple wildcards)
     
     Args:
-        pinyin_pattern: Pinyin pattern with @ wildcards (e.g., "t@cai", "tianc@")
+        pinyin_pattern: Pinyin pattern with @ wildcards (e.g., "t@cai", "tianc@", "t@c@")
         
     Returns:
         List of expanded pinyin strings
@@ -376,6 +377,8 @@ def expand_pinyin_wildcards(pinyin_pattern: str) -> List[str]:
         ['tiancai', 'tencai', 'ticai', 'tucai', ...]
         >>> expand_pinyin_wildcards("tianc@")
         ['tiancai', 'tiancao', 'tiancang', ...]
+        >>> expand_pinyin_wildcards("zhej@c@sha")
+        ['zhejiacisha', 'zhejiacaisha', ...]  # Multiple @ wildcards
     """
     FINALS = [
         'a', 'ai', 'an', 'ang', 'ao',
@@ -389,15 +392,16 @@ def expand_pinyin_wildcards(pinyin_pattern: str) -> List[str]:
     if '@' not in pinyin_pattern:
         return [pinyin_pattern]
     
-    parts = pinyin_pattern.split('@')
-    if len(parts) != 2:
-        return [pinyin_pattern]
-    
-    left_part, right_part = parts
+    first_at_index = pinyin_pattern.index('@')
+    left_part = pinyin_pattern[:first_at_index]
+    right_part = pinyin_pattern[first_at_index + 1:]
     
     result = []
     for final in FINALS:
         expanded = left_part + final + right_part
-        result.append(expanded)
+        if '@' in expanded:
+            result.extend(expand_pinyin_wildcards(expanded))
+        else:
+            result.append(expanded)
     
     return result

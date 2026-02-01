@@ -93,6 +93,17 @@ lexicon search -r "^tianc@$" -p -L 10
 # tianc@ 会扩展为 tiancai, tiancao, tiancang 等
 # 搜索以 tianc 开头加任意韵母的词语
 
+# 拼音模式下的 . 通配符 - 匹配一个拼音音节（一个汉字）🆕
+lexicon search -r "^h@..$" -p -h -L 10
+# h@ = 以h开头+任意韵母（1个字）
+# .. = 任意2个字
+# 总共匹配 3字词语
+# 结果：合同异、合胃口、海棠果、海豚泳 等
+
+lexicon search -r "^h@...$" -p -h -L 10
+# h@ + ... = 4字词语
+# 结果：海市蜃楼、海誓山盟、海水桑田 等
+
 # 谐音搜索 - 搜索声母相似的成语
 lexicon search -i zgcd -h -L 10
 # zgcd (中国成都) 会扩展到 cgcd, sgcd, zgsd 等相似发音

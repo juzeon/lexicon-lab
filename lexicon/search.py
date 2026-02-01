@@ -554,8 +554,8 @@ class SearchEngine:
                     regex_matches = []
                     for idx in candidates:
                         word = self.words[idx]
-                        pinyin_text = word.pinyin_no_tone.replace(' ', '')
-                        if pinyin_regex.search(pinyin_text) or hanzi_regex.search(word.word):
+                        pinyin_with_spaces = word.pinyin_no_tone
+                        if pinyin_regex.search(pinyin_with_spaces) or hanzi_regex.search(word.word):
                             regex_matches.append(idx)
                 else:
                     expanded_regex = regex
@@ -585,20 +585,126 @@ class SearchEngine:
         return [self.words[idx] for idx in paginated_indices]
 
     def _convert_to_pinyin_pattern(self, regex_pattern: str, enable_homophone: bool = False) -> str:
-        from lexicon.pinyin_utils import expand_pinyin_wildcards, get_similar_pinyin
+        from lexicon.pinyin_utils import get_similar_pinyin
         
         if '@' in regex_pattern:
-            expanded_patterns = expand_pinyin_wildcards(regex_pattern)
-            if len(expanded_patterns) > 1:
-                alternative_patterns = []
-                for pattern in expanded_patterns:
-                    converted = self._convert_to_pinyin_pattern_internal(pattern, enable_homophone)
-                    alternative_patterns.append(f"(?:{converted})")
-                return '|'.join(alternative_patterns)
-            else:
-                regex_pattern = expanded_patterns[0]
+            return self._convert_wildcard_pattern_to_pinyin_regex(regex_pattern, enable_homophone)
         
         return self._convert_to_pinyin_pattern_internal(regex_pattern, enable_homophone)
+    
+    def _convert_wildcard_pattern_to_pinyin_regex(self, regex_pattern: str, enable_homophone: bool = False) -> str:
+        import re as regex_module
+        from lexicon.pinyin_utils import get_similar_pinyin
+        
+        FINALS = [
+            'a', 'ai', 'an', 'ang', 'ao',
+            'e', 'ei', 'en', 'eng', 'er',
+            'i', 'ia', 'ian', 'iang', 'iao', 'ie', 'in', 'ing', 'iong', 'iu',
+            'o', 'ong', 'ou',
+            'u', 'ua', 'uai', 'uan', 'uang', 'ui', 'un', 'uo',
+            'v', 've', 'van', 'vn',
+        ]
+        
+        result_parts = []
+        i = 0
+        in_bracket = False
+        bracket_content = []
+        accumulated_pinyin = ""
+        
+        def flush_pinyin():
+            nonlocal accumulated_pinyin
+            if accumulated_pinyin:
+                syllables = self._split_pinyin_syllables(accumulated_pinyin)
+                
+                if enable_homophone:
+                    syllable_parts = []
+                    for syllable in syllables:
+                        similar_pinyins = get_similar_pinyin(syllable)
+                        all_variants = [syllable] + similar_pinyins
+                        if len(all_variants) > 1:
+                            syllable_parts.append(f"({'|'.join(all_variants)})")
+                        else:
+                            syllable_parts.append(syllable)
+                    result_parts.append(r' '.join(syllable_parts))
+                else:
+                    result_parts.append(r' '.join(syllables))
+                
+                accumulated_pinyin = ""
+                
+                if i < len(regex_pattern) and regex_pattern[i] not in '^$*+?{}()|]@':
+                    result_parts.append(r' ')
+        
+        PINYIN_SYLLABLE = r'\w+'
+        
+        while i < len(regex_pattern):
+            char = regex_pattern[i]
+            
+            if char == '@':
+                flush_pinyin()
+                finals_pattern = '|'.join(FINALS)
+                result_parts.append(f"({finals_pattern})")
+                
+                if i + 1 < len(regex_pattern) and regex_pattern[i + 1] not in '^$*+?{}()|]@':
+                    result_parts.append(r' ')
+                i += 1
+            elif char == '[' and (i == 0 or regex_pattern[i-1] != '\\'):
+                flush_pinyin()
+                in_bracket = True
+                bracket_content = [char]
+                i += 1
+            elif char == ']' and in_bracket and (i == 0 or regex_pattern[i-1] != '\\'):
+                in_bracket = False
+                bracket_content.append(char)
+                result_parts.append(''.join(bracket_content))
+                bracket_content = []
+                i += 1
+            elif in_bracket:
+                bracket_content.append(char)
+                i += 1
+            elif char == '\\' and i + 1 < len(regex_pattern):
+                flush_pinyin()
+                result_parts.append(char + regex_pattern[i + 1])
+                i += 2
+            elif char == '.':
+                flush_pinyin()
+                peek_ahead = i + 1
+                
+                if peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] in '*+?{':
+                    result_parts.append('.')
+                    i += 1
+                else:
+                    dot_count = 1
+                    while peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] == '.':
+                        dot_count += 1
+                        peek_ahead += 1
+                    
+                    syllable_patterns = [PINYIN_SYLLABLE] * dot_count
+                    pattern_str = r' '.join(syllable_patterns)
+                    result_parts.append(pattern_str)
+                    
+                    if peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] not in '^$*+?{}()|]@':
+                        result_parts.append(r' ')
+                    
+                    i = peek_ahead
+            elif char in '^$*+?{}()|':
+                flush_pinyin()
+                result_parts.append(char)
+                i += 1
+            elif ord(char) > 127:
+                flush_pinyin()
+                char_pinyin = lazy_pinyin(char, style=Style.NORMAL)
+                if char_pinyin:
+                    result_parts.append(char_pinyin[0])
+                    if i + 1 < len(regex_pattern) and regex_pattern[i + 1] not in '^$.*+?{}()|]@':
+                        result_parts.append(r' ')
+                i += 1
+            else:
+                accumulated_pinyin += char
+                i += 1
+        
+        flush_pinyin()
+        
+        return ''.join(result_parts)
     
     def _convert_to_pinyin_pattern_internal(self, regex_pattern: str, enable_homophone: bool = False) -> str:
         import re as regex_module
@@ -613,16 +719,27 @@ class SearchEngine:
         def flush_pinyin():
             nonlocal accumulated_pinyin
             if accumulated_pinyin:
+                syllables = self._split_pinyin_syllables(accumulated_pinyin)
+                
                 if enable_homophone:
-                    similar_pinyins = get_similar_pinyin(accumulated_pinyin)
-                    all_variants = [accumulated_pinyin] + similar_pinyins
-                    if len(all_variants) > 1:
-                        result_parts.append(f"({'|'.join(all_variants)})")
-                    else:
-                        result_parts.append(accumulated_pinyin)
+                    syllable_parts = []
+                    for syllable in syllables:
+                        similar_pinyins = get_similar_pinyin(syllable)
+                        all_variants = [syllable] + similar_pinyins
+                        if len(all_variants) > 1:
+                            syllable_parts.append(f"({'|'.join(all_variants)})")
+                        else:
+                            syllable_parts.append(syllable)
+                    result_parts.append(r' '.join(syllable_parts))
                 else:
-                    result_parts.append(accumulated_pinyin)
+                    result_parts.append(r' '.join(syllables))
+                
                 accumulated_pinyin = ""
+                
+                if i < len(regex_pattern) and regex_pattern[i] not in '^$*+?{}()|]':
+                    result_parts.append(r' ')
+        
+        PINYIN_SYLLABLE = r'\w+'
         
         while i < len(regex_pattern):
             char = regex_pattern[i]
@@ -645,7 +762,28 @@ class SearchEngine:
                 flush_pinyin()
                 result_parts.append(char + regex_pattern[i + 1])
                 i += 2
-            elif char in '.^$*+?{}()|':
+            elif char == '.':
+                flush_pinyin()
+                peek_ahead = i + 1
+                
+                if peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] in '*+?{':
+                    result_parts.append('.')
+                    i += 1
+                else:
+                    dot_count = 1
+                    while peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] == '.':
+                        dot_count += 1
+                        peek_ahead += 1
+                    
+                    syllable_patterns = [PINYIN_SYLLABLE] * dot_count
+                    pattern_str = r' '.join(syllable_patterns)
+                    result_parts.append(pattern_str)
+                    
+                    if peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] not in '^$*+?{}()|]':
+                        result_parts.append(r' ')
+                    
+                    i = peek_ahead
+            elif char in '^$*+?{}()|':
                 flush_pinyin()
                 result_parts.append(char)
                 i += 1
@@ -654,6 +792,8 @@ class SearchEngine:
                 char_pinyin = lazy_pinyin(char, style=Style.NORMAL)
                 if char_pinyin:
                     result_parts.append(char_pinyin[0])
+                    if i + 1 < len(regex_pattern) and regex_pattern[i + 1] not in '^$.*+?{}()|]':
+                        result_parts.append(r' ')
                 i += 1
             else:
                 accumulated_pinyin += char
