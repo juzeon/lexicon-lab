@@ -104,6 +104,23 @@ lexicon search -r "^h@...$" -p -h -L 10
 # h@ + ... = 4字词语
 # 结果：海市蜃楼、海誓山盟、海水桑田 等
 
+# 正则量词 - 使用 {n}, {m,n} 等量词指定字数 🆕
+lexicon search -r "^zuoci.{2}$" -p -h
+# .{2} = 恰好2个字
+# 结果：坐吃山崩、坐吃山空
+
+lexicon search -r "^tian.{1,3}$" -p -L 10
+# .{1,3} = 1到3个字
+# 结果：天戈、天各一方、天根 等
+
+lexicon search -r "^xin.{2,}$" -p -L 10
+# .{2,} = 2个或更多字
+# 结果：心惊胆战、心惊肉跳、心照不宣 等
+
+lexicon search -r "^yi.{,3}$" -p -L 10
+# .{,3} = 0到3个字
+# 结果：訑言、溢言虚美、溢于言表 等
+
 # 谐音搜索 - 搜索声母相似的成语
 lexicon search -i zgcd -h -L 10
 # zgcd (中国成都) 会扩展到 cgcd, sgcd, zgsd 等相似发音

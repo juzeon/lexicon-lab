@@ -584,6 +584,46 @@ class SearchEngine:
 
         return [self.words[idx] for idx in paginated_indices]
 
+    def _parse_quantifier(self, pattern: str, start_pos: int) -> tuple[str, int] | None:
+        """Parse regex quantifier like {n}, {m,n}, {m,}, {,n}.
+        
+        Args:
+            pattern: The regex pattern string
+            start_pos: Position of the '{' character
+            
+        Returns:
+            Tuple of (quantifier_string, end_position) or None if not a valid quantifier
+            
+        Examples:
+            >>> _parse_quantifier("abc{2}def", 3)
+            ("{2}", 5)
+            >>> _parse_quantifier("abc{2,5}def", 3)
+            ("{2,5}", 7)
+        """
+        if start_pos >= len(pattern) or pattern[start_pos] != '{':
+            return None
+        
+        end_pos = pattern.find('}', start_pos)
+        if end_pos == -1:
+            return None
+        
+        quantifier = pattern[start_pos:end_pos + 1]
+        
+        # Validate quantifier format: {n}, {m,n}, {m,}, {,n}
+        inner = quantifier[1:-1]
+        if ',' in inner:
+            parts = inner.split(',')
+            if len(parts) != 2:
+                return None
+            # Validate each part is empty or a number
+            for part in parts:
+                if part and not part.isdigit():
+                    return None
+        elif not inner.isdigit():
+            return None
+        
+        return (quantifier, end_pos + 1)
+    
     def _convert_to_pinyin_pattern(self, regex_pattern: str, enable_homophone: bool = False) -> str:
         from lexicon.pinyin_utils import get_similar_pinyin
         
@@ -669,7 +709,50 @@ class SearchEngine:
                 flush_pinyin()
                 peek_ahead = i + 1
                 
-                if peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] in '*+?{':
+                if peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] == '{':
+                    quantifier_result = self._parse_quantifier(regex_pattern, peek_ahead)
+                    if quantifier_result:
+                        quantifier, end_pos = quantifier_result
+                        inner = quantifier[1:-1]
+                        
+                        if ',' in inner:
+                            parts = inner.split(',')
+                            min_count = int(parts[0]) if parts[0] else 0
+                            max_count = int(parts[1]) if parts[1] else min_count
+                            
+                            if parts[0] and parts[1]:
+                                syllable_patterns = [PINYIN_SYLLABLE] * min_count
+                                pattern_str = r' '.join(syllable_patterns)
+                                if min_count > 0:
+                                    remaining = max_count - min_count
+                                    if remaining > 0:
+                                        optional_pattern = r'(?: ' + PINYIN_SYLLABLE + r'){0,' + str(remaining) + r'}'
+                                        result_parts.append(pattern_str + optional_pattern)
+                                    else:
+                                        result_parts.append(pattern_str)
+                                else:
+                                    result_parts.append(r'(?:' + PINYIN_SYLLABLE + r'(?: ' + PINYIN_SYLLABLE + r'){0,' + str(max_count - 1) + r'})?')
+                            elif parts[0]:
+                                syllable_patterns = [PINYIN_SYLLABLE] * min_count
+                                pattern_str = r' '.join(syllable_patterns)
+                                result_parts.append(pattern_str + r'(?: ' + PINYIN_SYLLABLE + r')*')
+                            else:
+                                max_count = int(parts[1])
+                                result_parts.append(r'(?:' + PINYIN_SYLLABLE + r'(?: ' + PINYIN_SYLLABLE + r'){0,' + str(max_count - 1) + r'})?')
+                        else:
+                            count = int(inner)
+                            syllable_patterns = [PINYIN_SYLLABLE] * count
+                            pattern_str = r' '.join(syllable_patterns)
+                            result_parts.append(pattern_str)
+                        
+                        if end_pos < len(regex_pattern) and regex_pattern[end_pos] not in '^$*+?{}()|]@':
+                            result_parts.append(r' ')
+                        
+                        i = end_pos
+                    else:
+                        result_parts.append('.')
+                        i += 1
+                elif peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] in '*+?':
                     result_parts.append('.')
                     i += 1
                 else:
@@ -766,7 +849,50 @@ class SearchEngine:
                 flush_pinyin()
                 peek_ahead = i + 1
                 
-                if peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] in '*+?{':
+                if peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] == '{':
+                    quantifier_result = self._parse_quantifier(regex_pattern, peek_ahead)
+                    if quantifier_result:
+                        quantifier, end_pos = quantifier_result
+                        inner = quantifier[1:-1]
+                        
+                        if ',' in inner:
+                            parts = inner.split(',')
+                            min_count = int(parts[0]) if parts[0] else 0
+                            max_count = int(parts[1]) if parts[1] else min_count
+                            
+                            if parts[0] and parts[1]:
+                                syllable_patterns = [PINYIN_SYLLABLE] * min_count
+                                pattern_str = r' '.join(syllable_patterns)
+                                if min_count > 0:
+                                    remaining = max_count - min_count
+                                    if remaining > 0:
+                                        optional_pattern = r'(?: ' + PINYIN_SYLLABLE + r'){0,' + str(remaining) + r'}'
+                                        result_parts.append(pattern_str + optional_pattern)
+                                    else:
+                                        result_parts.append(pattern_str)
+                                else:
+                                    result_parts.append(r'(?:' + PINYIN_SYLLABLE + r'(?: ' + PINYIN_SYLLABLE + r'){0,' + str(max_count - 1) + r'})?')
+                            elif parts[0]:
+                                syllable_patterns = [PINYIN_SYLLABLE] * min_count
+                                pattern_str = r' '.join(syllable_patterns)
+                                result_parts.append(pattern_str + r'(?: ' + PINYIN_SYLLABLE + r')*')
+                            else:
+                                max_count = int(parts[1])
+                                result_parts.append(r'(?:' + PINYIN_SYLLABLE + r'(?: ' + PINYIN_SYLLABLE + r'){0,' + str(max_count - 1) + r'})?')
+                        else:
+                            count = int(inner)
+                            syllable_patterns = [PINYIN_SYLLABLE] * count
+                            pattern_str = r' '.join(syllable_patterns)
+                            result_parts.append(pattern_str)
+                        
+                        if end_pos < len(regex_pattern) and regex_pattern[end_pos] not in '^$*+?{}()|]':
+                            result_parts.append(r' ')
+                        
+                        i = end_pos
+                    else:
+                        result_parts.append('.')
+                        i += 1
+                elif peek_ahead < len(regex_pattern) and regex_pattern[peek_ahead] in '*+?':
                     result_parts.append('.')
                     i += 1
                 else:
