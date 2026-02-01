@@ -28,6 +28,23 @@ class LexiconIndex:
         
         self._build_indexes()
     
+    @staticmethod
+    def _is_chinese_char(char: str) -> bool:
+        if not char or len(char) != 1:
+            return False
+        code_point = ord(char)
+        return (
+            (0x4E00 <= code_point <= 0x9FFF) or
+            (0x3400 <= code_point <= 0x4DBF) or
+            (0x20000 <= code_point <= 0x2A6DF) or
+            (0x2A700 <= code_point <= 0x2B73F) or
+            (0x2B740 <= code_point <= 0x2B81F) or
+            (0x2B820 <= code_point <= 0x2CEAF) or
+            (0x2CEB0 <= code_point <= 0x2EBEF) or
+            (0xF900 <= code_point <= 0xFAFF) or
+            (0x2F800 <= code_point <= 0x2FA1F)
+        )
+    
     def _build_indexes(self) -> None:
         from lexicon.pinyin_utils import get_similar_pinyin
         
@@ -55,7 +72,7 @@ class LexiconIndex:
                 by_char[char].append(idx)
                 self.char_freq_all[char] += 1
                 
-                if i < len(syllables):
+                if i < len(syllables) and self._is_chinese_char(char):
                     py_syllable = syllables[i]
                     by_char_pinyin[py_syllable].add(char)
                     

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List
 
 import orjson
+from pypinyin import lazy_pinyin, Style
 
 from lexicon.models import Word
 from lexicon.index import LexiconIndex
@@ -545,18 +546,26 @@ class SearchEngine:
 
         if regex is not None:
             try:
-                # Apply pinyin expansion to regex if enabled
                 if enable_pinyin:
-                    expanded_regex = self._expand_regex_with_pinyin(regex, enable_homophone)
+                    pinyin_pattern = self._convert_to_pinyin_pattern(regex, enable_homophone)
+                    pinyin_regex = re.compile(pinyin_pattern, re.IGNORECASE)
+                    hanzi_regex = re.compile(regex)
+                    
+                    regex_matches = []
+                    for idx in candidates:
+                        word = self.words[idx]
+                        pinyin_text = word.pinyin_no_tone.replace(' ', '')
+                        if pinyin_regex.search(pinyin_text) or hanzi_regex.search(word.word):
+                            regex_matches.append(idx)
                 else:
                     expanded_regex = regex
-
-                regex_compiled = re.compile(expanded_regex)
-                regex_matches = []
-                for idx in candidates:
-                    word = self.words[idx]
-                    if regex_compiled.search(word.word):
-                        regex_matches.append(idx)
+                    regex_compiled = re.compile(expanded_regex)
+                    regex_matches = []
+                    for idx in candidates:
+                        word = self.words[idx]
+                        if regex_compiled.search(word.word):
+                            regex_matches.append(idx)
+                            
                 candidates = set(regex_matches)
                 if not candidates:
                     return []
@@ -574,6 +583,85 @@ class SearchEngine:
         paginated_indices = result_indices[start_idx:end_idx]
 
         return [self.words[idx] for idx in paginated_indices]
+
+    def _convert_to_pinyin_pattern(self, regex_pattern: str, enable_homophone: bool = False) -> str:
+        from lexicon.pinyin_utils import expand_pinyin_wildcards, get_similar_pinyin
+        
+        if '@' in regex_pattern:
+            expanded_patterns = expand_pinyin_wildcards(regex_pattern)
+            if len(expanded_patterns) > 1:
+                alternative_patterns = []
+                for pattern in expanded_patterns:
+                    converted = self._convert_to_pinyin_pattern_internal(pattern, enable_homophone)
+                    alternative_patterns.append(f"(?:{converted})")
+                return '|'.join(alternative_patterns)
+            else:
+                regex_pattern = expanded_patterns[0]
+        
+        return self._convert_to_pinyin_pattern_internal(regex_pattern, enable_homophone)
+    
+    def _convert_to_pinyin_pattern_internal(self, regex_pattern: str, enable_homophone: bool = False) -> str:
+        import re as regex_module
+        from lexicon.pinyin_utils import get_similar_pinyin
+        
+        result_parts = []
+        i = 0
+        in_bracket = False
+        bracket_content = []
+        accumulated_pinyin = ""
+        
+        def flush_pinyin():
+            nonlocal accumulated_pinyin
+            if accumulated_pinyin:
+                if enable_homophone:
+                    similar_pinyins = get_similar_pinyin(accumulated_pinyin)
+                    all_variants = [accumulated_pinyin] + similar_pinyins
+                    if len(all_variants) > 1:
+                        result_parts.append(f"({'|'.join(all_variants)})")
+                    else:
+                        result_parts.append(accumulated_pinyin)
+                else:
+                    result_parts.append(accumulated_pinyin)
+                accumulated_pinyin = ""
+        
+        while i < len(regex_pattern):
+            char = regex_pattern[i]
+            
+            if char == '[' and (i == 0 or regex_pattern[i-1] != '\\'):
+                flush_pinyin()
+                in_bracket = True
+                bracket_content = [char]
+                i += 1
+            elif char == ']' and in_bracket and (i == 0 or regex_pattern[i-1] != '\\'):
+                in_bracket = False
+                bracket_content.append(char)
+                result_parts.append(''.join(bracket_content))
+                bracket_content = []
+                i += 1
+            elif in_bracket:
+                bracket_content.append(char)
+                i += 1
+            elif char == '\\' and i + 1 < len(regex_pattern):
+                flush_pinyin()
+                result_parts.append(char + regex_pattern[i + 1])
+                i += 2
+            elif char in '.^$*+?{}()|':
+                flush_pinyin()
+                result_parts.append(char)
+                i += 1
+            elif ord(char) > 127:
+                flush_pinyin()
+                char_pinyin = lazy_pinyin(char, style=Style.NORMAL)
+                if char_pinyin:
+                    result_parts.append(char_pinyin[0])
+                i += 1
+            else:
+                accumulated_pinyin += char
+                i += 1
+        
+        flush_pinyin()
+        
+        return ''.join(result_parts)
 
     def _expand_with_pinyin(self, text: str) -> set[str]:
         if not text or len(text) > 10:
