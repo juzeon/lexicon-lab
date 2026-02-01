@@ -18,12 +18,26 @@
 
 ## 📦 数据集
 
-包含 **325,503** 条词语数据：
-- 成语：30,895 条
+包含 **326,466** 条词语数据：
+- 成语：**31,858** 条
 - 词语：280,576 条
 - 歇后语：14,032 条
 
-数据来源：[chinese-xinhua](https://github.com/pwxcoo/chinese-xinhua)
+### 数据来源
+
+本项目整合了多个高质量中文词汇数据集：
+
+1. **[chinese-xinhua](https://github.com/pwxcoo/chinese-xinhua)** - 中华新华字典数据库（主要数据源）
+   - 提供成语、词语、歇后语的详细释义、出处、例句等
+   
+2. **[THUOCL](https://github.com/thunlp/THUOCL)** - 清华大学开放中文词库
+   - 补充了 961 条高频成语
+   - 提供词频统计数据
+   
+3. **手动补充** - 常见但缺失的成语词语
+   - 如：扬名立万、走街串巷等
+
+通过合并去重，相比原始数据集增加了 **963 条成语**，覆盖更全面。
 
 ## 🔧 安装
 
@@ -306,5 +320,7 @@ MIT License
 
 ## 🙏 致谢
 
-- 数据来源：[chinese-xinhua](https://github.com/pwxcoo/chinese-xinhua)
+- 数据来源：
+  - [chinese-xinhua](https://github.com/pwxcoo/chinese-xinhua) - 中华新华字典数据库
+  - [THUOCL](https://github.com/thunlp/THUOCL) - 清华大学开放中文词库
 - 拼音处理：[pypinyin](https://github.com/mozillazg/python-pinyin)

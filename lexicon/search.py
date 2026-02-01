@@ -65,7 +65,7 @@ class SearchEngine:
         """
         hash_md5 = hashlib.md5()
 
-        for filename in ["idiom.json", "word.json", "xiehouyu.json", "ci.json"]:
+        for filename in ["idiom_merged.json", "word.json", "xiehouyu.json", "ci.json"]:
             filepath = self.data_dir / filename
             if filepath.exists():
                 with open(filepath, 'rb') as f:
@@ -131,10 +131,10 @@ class SearchEngine:
 
     def _load_data(self) -> None:
         """Load all JSON data files and convert to Word objects."""
-        # Load idioms (成语)
-        idiom_file = self.data_dir / "idiom.json"
+        # Load idioms (成语) - use merged dataset
+        idiom_file = self.data_dir / "idiom_merged.json"
         if idiom_file.exists():
-            logger.info("Loading idioms...")
+            logger.info("Loading idioms from merged dataset...")
             self._load_idioms(idiom_file)
             logger.info(f"Loaded {len([w for w in self.words if w.category == '成语'])} idioms")
         else:
