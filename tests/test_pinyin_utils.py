@@ -9,6 +9,7 @@ from lexicon.pinyin_utils import (
     get_rhyme,
     get_all_pinyin_variants,
     get_all_pinyin_no_tone_variants,
+    expand_pinyin_wildcards,
 )
 
 
@@ -241,3 +242,55 @@ class TestGetAllPinyinNoToneVariants:
         result = get_all_pinyin_no_tone_variants("")
         # Empty string returns [''] not []
         assert result == [''] or result == []
+
+
+class TestExpandPinyinWildcards:
+    """Test expand_pinyin_wildcards function - @ wildcard for finals."""
+
+    def test_wildcard_after_initial(self):
+        """Test @ wildcard after initial consonant (t@cai)."""
+        result = expand_pinyin_wildcards("t@cai")
+        assert len(result) > 0
+        assert "tiancai" in result
+        assert "tencai" in result
+        assert "tacai" in result
+
+    def test_wildcard_at_end(self):
+        """Test @ wildcard at end of pattern (tianc@)."""
+        result = expand_pinyin_wildcards("tianc@")
+        assert len(result) > 0
+        assert "tiancai" in result
+        assert "tiancao" in result
+        assert "tiancang" in result
+
+    def test_wildcard_in_middle(self):
+        """Test @ wildcard in middle position."""
+        result = expand_pinyin_wildcards("w@n")
+        assert len(result) > 0
+        assert "wan" in result
+        assert "wen" in result
+        assert "win" in result
+
+    def test_no_wildcard_returns_original(self):
+        """Test pattern without @ returns unchanged."""
+        result = expand_pinyin_wildcards("tiancai")
+        assert result == ["tiancai"]
+
+    def test_multiple_wildcards_returns_original(self):
+        """Test invalid pattern with multiple @ symbols."""
+        result = expand_pinyin_wildcards("t@c@i")
+        assert result == ["t@c@i"]
+
+    def test_empty_string(self):
+        """Test empty string."""
+        result = expand_pinyin_wildcards("")
+        assert result == [""]
+
+    def test_wildcard_at_beginning(self):
+        """Test @ at the very beginning."""
+        result = expand_pinyin_wildcards("@n")
+        assert len(result) > 0
+        assert "an" in result
+        assert "en" in result
+        assert "in" in result
+

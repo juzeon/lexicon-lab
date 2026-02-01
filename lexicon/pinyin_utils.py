@@ -356,3 +356,48 @@ def get_similar_pinyin(pinyin_text: str) -> List[str]:
     result.discard(pinyin_lower)
     
     return sorted(list(result))
+
+
+def expand_pinyin_wildcards(pinyin_pattern: str) -> List[str]:
+    """Expand @ wildcards in pinyin patterns.
+    
+    @ symbol acts as wildcard for finals (vowels):
+    - t@cai -> t+any_final+cai -> tiancai, tencai, ticai, tucai, etc.
+    - tianc@ -> tianc+any_final -> tiancai, tiancao, tiancang, etc.
+    
+    Args:
+        pinyin_pattern: Pinyin pattern with @ wildcards (e.g., "t@cai", "tianc@")
+        
+    Returns:
+        List of expanded pinyin strings
+        
+    Examples:
+        >>> expand_pinyin_wildcards("t@cai")
+        ['tiancai', 'tencai', 'ticai', 'tucai', ...]
+        >>> expand_pinyin_wildcards("tianc@")
+        ['tiancai', 'tiancao', 'tiancang', ...]
+    """
+    FINALS = [
+        'a', 'ai', 'an', 'ang', 'ao',
+        'e', 'ei', 'en', 'eng', 'er',
+        'i', 'ia', 'ian', 'iang', 'iao', 'ie', 'in', 'ing', 'iong', 'iu',
+        'o', 'ong', 'ou',
+        'u', 'ua', 'uai', 'uan', 'uang', 'ui', 'un', 'uo',
+        'v', 've', 'van', 'vn',
+    ]
+    
+    if '@' not in pinyin_pattern:
+        return [pinyin_pattern]
+    
+    parts = pinyin_pattern.split('@')
+    if len(parts) != 2:
+        return [pinyin_pattern]
+    
+    left_part, right_part = parts
+    
+    result = []
+    for final in FINALS:
+        expanded = left_part + final + right_part
+        result.append(expanded)
+    
+    return result

@@ -4,6 +4,8 @@
 
 一个强大的命令行工具，用于搜索和探索中文词语、成语、歇后语。支持多种高级搜索功能，包括拼音、结构模式、押韵等。
 
+*Orchestrated with [OpenCode](https://github.com/anomalyco/opencode) & [OhMyOpenCode](https://github.com/code-yeongyu/oh-my-opencode).*
+
 ## ✨ 特性
 
 - 🔍 **灵活搜索**: 支持正则表达式、拼音首字母等多种搜索条件
@@ -77,6 +79,19 @@ lexicon search -r "^wan.*" -p -t 成语 -L 5
 lexicon search -r "^wan.*" -p -h -t 成语 -L 5
 # 搜索以 wan 或相似发音(wang/wen/weng/yuan)开头的成语
 # 结果：弯弓饮羽、剜肉补疮、网开一面、稳扎稳打 等
+
+# @ 通配符搜索 - 用 @ 代替声母或韵母 🆕
+lexicon search -r "^t@cai$" -p -L 10
+# t@cai 会扩展为 tiancai, tencai, tacai, tucai 等
+# 结果：大采、大菜、大蔡、破财 等
+
+lexicon search -i "t@c" -L 10
+# 搜索拼音首字母匹配 t+任意韵母+c 的词语
+# 结果：天窗、天垂、天赐、天聪 等
+
+lexicon search -r "^tianc@$" -p -L 10
+# tianc@ 会扩展为 tiancai, tiancao, tiancang 等
+# 搜索以 tianc 开头加任意韵母的词语
 
 # 谐音搜索 - 搜索声母相似的成语
 lexicon search -i zgcd -h -L 10
