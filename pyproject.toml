@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lexicon-lab"
+version = "0.1.0"
+description = "一个灵活的中文词语搜索 CLI 工具"
+requires-python = ">=3.10"
+dependencies = [
+    "typer[all]>=0.9.0",
+    "pypinyin>=0.50.0",
+    "orjson>=3.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+
+[project.scripts]
+lexicon = "lexicon.cli:app"
+
+[tool.setuptools]
+packages = ["lexicon"]
