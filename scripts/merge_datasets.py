@@ -37,6 +37,12 @@ def load_thuocl_idioms() -> List[Dict]:
                     })
     return idioms
 
+def load_chengyujielong_idioms() -> List[Dict]:
+    """加载成语接龙数据集 (43,165条成语)"""
+    source_path = Path(__file__).parent.parent / 'data' / 'sources' / 'chengyujielong_idioms.json'
+    with open(source_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
 def add_manual_idioms() -> List[Dict]:
     """手动添加缺失的常见成语"""
     return [
@@ -88,6 +94,9 @@ def merge_idioms() -> List[Dict]:
     thuocl = load_thuocl_idioms()
     print(f"  ✓ THUOCL数据集: {len(thuocl)} 条")
     
+    chengyujielong = load_chengyujielong_idioms()
+    print(f"  ✓ 成语接龙数据集: {len(chengyujielong)} 条")
+    
     manual = add_manual_idioms()
     print(f"  ✓ 手动添加: {len(manual)} 条")
     
@@ -95,7 +104,7 @@ def merge_idioms() -> List[Dict]:
     print("\n🔨 合并并去重...")
     merged_dict: Dict[str, Dict] = {}
     
-    # 优先级：原始数据 > crazywhale > THUOCL > 手动
+    # 优先级：原始数据 > crazywhale > 成语接龙 > THUOCL > 手动
     # 但手动添加的一定会加入
     
     # 先加载原始数据
@@ -112,6 +121,15 @@ def merge_idioms() -> List[Dict]:
             merged_dict[word] = normalize_idiom(item, 'crazywhalecc')
             added_from_crazywhale += 1
     print(f"  ✓ 从 crazywhalecc 新增: {added_from_crazywhale} 条")
+    
+    # 添加成语接龙数据集中不存在的
+    added_from_chengyujielong = 0
+    for item in chengyujielong:
+        word = item.get('word')
+        if word and word not in merged_dict:
+            merged_dict[word] = normalize_idiom(item, 'chengyujielong')
+            added_from_chengyujielong += 1
+    print(f"  ✓ 从成语接龙 新增: {added_from_chengyujielong} 条")
     
     # 添加 THUOCL 中不存在的（简化版）
     added_from_thuocl = 0
