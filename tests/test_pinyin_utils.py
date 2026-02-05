@@ -283,6 +283,35 @@ class TestExpandPinyinWildcards:
         assert "tacai" in result
         assert "tencai" in result
 
+    def test_only_wildcard_expands(self):
+        """Test pattern with only @ expands to finals list."""
+        result = expand_pinyin_wildcards("@")
+        assert len(result) > 10
+        assert "a" in result
+        assert "ing" in result
+        assert "uo" in result
+
+    def test_double_wildcard_expands(self):
+        """Test pattern with consecutive @@ expands to combinations."""
+        result = expand_pinyin_wildcards("@@")
+        assert len(result) > 100
+        assert "aa" in result
+        assert "aing" in result
+
+    def test_wildcard_leading_and_trailing(self):
+        """Test pattern with @ at both ends expands."""
+        result = expand_pinyin_wildcards("@n@")
+        assert len(result) > 0
+        assert "ana" in result
+        assert "eni" in result
+
+    def test_wildcard_with_nonalpha(self):
+        """Test @ expansion preserves non-letter characters."""
+        result = expand_pinyin_wildcards("t@-c")
+        assert len(result) > 0
+        assert "ta-c" in result
+        assert "teng-c" in result
+
     def test_empty_string(self):
         """Test empty string."""
         result = expand_pinyin_wildcards("")
