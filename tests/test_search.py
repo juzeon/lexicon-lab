@@ -129,75 +129,6 @@ def mock_search_engine(sample_words):
     return engine
 
 
-class TestSearchByStart:
-    """Test search by first character."""
-
-    def test_search_start_single_result(self, mock_search_engine):
-        """Test search with start character that has one result."""
-        results = mock_search_engine.search(start="中")
-        assert len(results) == 1
-        assert results[0].word == "中国"
-
-    def test_search_start_multiple_results(self, mock_search_engine):
-        """Test search with start character that has multiple results."""
-        results = mock_search_engine.search(start="一")
-        assert len(results) == 1
-        assert results[0].word == "一心一意"
-
-    def test_search_start_no_results(self, mock_search_engine):
-        """Test search with start character that doesn't exist."""
-        results = mock_search_engine.search(start="金")
-        assert len(results) == 0
-
-    def test_search_start_multiple_chars(self, mock_search_engine):
-        """Test start filter finds all matching words."""
-        results = mock_search_engine.search(start="高")
-        assert len(results) == 1
-        assert results[0].word == "高高兴兴"
-
-
-class TestSearchByEnd:
-    """Test search by last character."""
-
-    def test_search_end_single_result(self, mock_search_engine):
-        """Test search with end character that has one result."""
-        results = mock_search_engine.search(end="国")
-        assert len(results) == 1
-        assert results[0].word == "中国"
-
-    def test_search_end_multiple_results(self, mock_search_engine):
-        """Test search with end character that has multiple results."""
-        results = mock_search_engine.search(end="久")
-        assert len(results) == 1
-        assert results[0].word == "天长地久"
-
-    def test_search_end_no_results(self, mock_search_engine):
-        """Test search with end character that doesn't exist."""
-        results = mock_search_engine.search(end="金")
-        assert len(results) == 0
-
-
-class TestSearchByContains:
-    """Test search by characters that must be present."""
-
-    def test_search_contains_single_char(self, mock_search_engine):
-        """Test search with single character in contains."""
-        results = mock_search_engine.search(contains=["国"])
-        assert len(results) == 1
-        assert results[0].word == "中国"
-
-    def test_search_contains_multiple_chars(self, mock_search_engine):
-        """Test search with multiple characters."""
-        results = mock_search_engine.search(contains=["一", "心"])
-        assert len(results) == 1
-        assert results[0].word == "一心一意"
-
-    def test_search_contains_char_not_present(self, mock_search_engine):
-        """Test search with character that doesn't exist."""
-        results = mock_search_engine.search(contains=["国", "金"])
-        assert len(results) == 0
-
-
 class TestSearchByLength:
     """Test search by word length."""
 
@@ -303,34 +234,6 @@ class TestSearchByRhyme:
         assert len(results) == 0
 
 
-class TestSearchByPattern:
-    """Test search by wildcard pattern."""
-
-    def test_search_pattern_simple(self, mock_search_engine):
-        """Test simple pattern search."""
-        results = mock_search_engine.search(pattern="一?一?")
-        assert len(results) >= 1
-        # 一心一意 matches 一?一?
-        assert any(w.word == "一心一意" for w in results)
-
-    def test_search_pattern_star_wildcard(self, mock_search_engine):
-        """Test pattern with star wildcard."""
-        results = mock_search_engine.search(pattern="一*意")
-        assert len(results) >= 1
-        assert any(w.word == "一心一意" for w in results)
-
-    def test_search_pattern_exact_match(self, mock_search_engine):
-        """Test pattern with exact match."""
-        results = mock_search_engine.search(pattern="中国")
-        assert len(results) == 1
-        assert results[0].word == "中国"
-
-    def test_search_pattern_no_match(self, mock_search_engine):
-        """Test pattern that doesn't match."""
-        results = mock_search_engine.search(pattern="金银铜铁")
-        assert len(results) == 0
-
-
 class TestSearchByRegex:
     """Test search by regular expression."""
 
@@ -355,9 +258,9 @@ class TestSearchByRegex:
 class TestSearchCombined:
     """Test combined search criteria."""
 
-    def test_search_start_and_length(self, mock_search_engine):
-        """Test search with start and length combined."""
-        results = mock_search_engine.search(start="一", length=4)
+    def test_search_regex_and_length(self, mock_search_engine):
+        """Test search with regex and length combined."""
+        results = mock_search_engine.search(regex="^一", length=4)
         assert len(results) == 1
         assert results[0].word == "一心一意"
 
@@ -367,15 +270,15 @@ class TestSearchCombined:
         assert len(results) == 1
         assert results[0].word == "一心一意"
 
-    def test_search_start_end_combined(self, mock_search_engine):
-        """Test search with start and end combined."""
-        results = mock_search_engine.search(start="中", end="国")
+    def test_search_regex_start_end_combined(self, mock_search_engine):
+        """Test search with regex start/end combined."""
+        results = mock_search_engine.search(regex="^中.*国$")
         assert len(results) == 1
         assert results[0].word == "中国"
 
     def test_search_multiple_filters_no_match(self, mock_search_engine):
         """Test combined search with no matching results."""
-        results = mock_search_engine.search(start="中", end="意")
+        results = mock_search_engine.search(regex="^中.*意$")
         assert len(results) == 0
 
 
@@ -407,11 +310,6 @@ class TestSearchEdgeCases:
         assert len(results) > 0
         assert len(results) <= 20
 
-    def test_search_empty_contains_list(self, mock_search_engine):
-        """Test search with empty contains list."""
-        results = mock_search_engine.search(contains=[])
-        assert len(results) > 0
-
     def test_search_zero_limit(self, mock_search_engine):
         """Test search with zero limit returns all results."""
         results = mock_search_engine.search(limit=0)
@@ -420,24 +318,7 @@ class TestSearchEdgeCases:
 
 
 class TestSearchPinyinExpansion:
-    """Test pinyin expansion for pattern and regex searches."""
-
-    def test_pattern_with_pinyin_disabled(self, mock_search_engine):
-        """Test pattern search without pinyin expansion."""
-        results = mock_search_engine.search(pattern="yi?yi?", enable_pinyin=False)
-        assert len(results) == 0
-
-    def test_pattern_with_pinyin_enabled(self, mock_search_engine):
-        """Test pattern search with pinyin expansion."""
-        results = mock_search_engine.search(pattern="yi?yi?", enable_pinyin=True)
-        assert len(results) >= 1
-        assert any(w.word == "一心一意" for w in results)
-
-    def test_pattern_pinyin_single_char(self, mock_search_engine):
-        """Test pattern with single character pinyin expansion."""
-        results = mock_search_engine.search(pattern="gao*xing", enable_pinyin=True)
-        assert len(results) >= 1
-        assert any(w.word == "高高兴兴" for w in results)
+    """Test pinyin expansion for regex searches."""
 
     def test_regex_with_pinyin_disabled(self, mock_search_engine):
         """Test regex search without pinyin expansion."""
@@ -455,12 +336,6 @@ class TestSearchPinyinExpansion:
         results = mock_search_engine.search(regex="yan.*yan", enable_pinyin=True)
         assert len(results) >= 1
         assert any(w.word == "研究研究" for w in results)
-
-    def test_pattern_multi_syllable_pinyin(self, mock_search_engine):
-        """Test pattern with multi-syllable pinyin (e.g., 'yixin')."""
-        results = mock_search_engine.search(pattern="yixin*", enable_pinyin=True)
-        assert len(results) >= 1
-        assert any(w.word == "一心一意" for w in results)
 
     def test_regex_multi_syllable_pinyin(self, mock_search_engine):
         """Test regex with multi-syllable pinyin (e.g., 'yixin')."""

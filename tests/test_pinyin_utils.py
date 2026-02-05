@@ -276,10 +276,12 @@ class TestExpandPinyinWildcards:
         result = expand_pinyin_wildcards("tiancai")
         assert result == ["tiancai"]
 
-    def test_multiple_wildcards_returns_original(self):
-        """Test invalid pattern with multiple @ symbols."""
+    def test_multiple_wildcards_expands(self):
+        """Test pattern with multiple @ symbols expands."""
         result = expand_pinyin_wildcards("t@c@i")
-        assert result == ["t@c@i"]
+        assert len(result) > 0
+        assert "tacai" in result
+        assert "tencai" in result
 
     def test_empty_string(self):
         """Test empty string."""
@@ -293,4 +295,3 @@ class TestExpandPinyinWildcards:
         assert "an" in result
         assert "en" in result
         assert "in" in result
-

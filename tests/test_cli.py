@@ -203,7 +203,7 @@ class TestSearchCommand:
         """Test search command help."""
         result = runner.invoke(app, ["search", "--help"])
         assert result.exit_code == 0
-        assert "首字" in result.stdout or "--start" in result.stdout
+        assert "--regex" in result.stdout
 
     @patch("lexicon.cli.get_search_engine")
     def test_search_no_criteria(self, mock_get_engine, mock_search_engine):
@@ -214,18 +214,18 @@ class TestSearchCommand:
         assert "找到" in result.stdout
 
     @patch("lexicon.cli.get_search_engine")
-    def test_search_by_start(self, mock_get_engine, mock_search_engine):
-        """Test search by start character."""
+    def test_search_by_regex_start(self, mock_get_engine, mock_search_engine):
+        """Test search by regex start anchor."""
         mock_get_engine.return_value = mock_search_engine
-        result = runner.invoke(app, ["search", "--start", "中"])
+        result = runner.invoke(app, ["search", "--regex", "^中"])
         assert result.exit_code == 0
         assert "中国" in result.stdout
 
     @patch("lexicon.cli.get_search_engine")
-    def test_search_by_end(self, mock_get_engine, mock_search_engine):
-        """Test search by end character."""
+    def test_search_by_regex_end(self, mock_get_engine, mock_search_engine):
+        """Test search by regex end anchor."""
         mock_get_engine.return_value = mock_search_engine
-        result = runner.invoke(app, ["search", "--end", "国"])
+        result = runner.invoke(app, ["search", "--regex", "国$"])
         assert result.exit_code == 0
         assert "中国" in result.stdout
 
@@ -264,7 +264,7 @@ class TestSearchCommand:
     def test_search_no_results(self, mock_get_engine, mock_search_engine):
         """Test search with no results."""
         mock_get_engine.return_value = mock_search_engine
-        result = runner.invoke(app, ["search", "--start", "金"])
+        result = runner.invoke(app, ["search", "--regex", "^金"])
         assert result.exit_code == 0
         assert "未找到" in result.stdout
 
@@ -272,7 +272,7 @@ class TestSearchCommand:
     def test_search_no_pinyin_flag(self, mock_get_engine, mock_search_engine):
         """Test search with --no-pinyin flag."""
         mock_get_engine.return_value = mock_search_engine
-        result = runner.invoke(app, ["search", "--start", "中", "--no-pinyin"])
+        result = runner.invoke(app, ["search", "--regex", "^中", "--no-pinyin"])
         assert result.exit_code == 0
         assert "中国" in result.stdout
 
@@ -280,7 +280,7 @@ class TestSearchCommand:
     def test_search_no_definition_flag(self, mock_get_engine, mock_search_engine):
         """Test search with --no-definition flag."""
         mock_get_engine.return_value = mock_search_engine
-        result = runner.invoke(app, ["search", "--start", "中", "--no-definition"])
+        result = runner.invoke(app, ["search", "--regex", "^中", "--no-definition"])
         assert result.exit_code == 0
         assert "中国" in result.stdout
 
